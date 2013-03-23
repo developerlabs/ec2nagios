@@ -12,6 +12,7 @@ CFCredentials::set(array(
 
 $config_path = '/etc/nagios/nagios.cfg';
 $objects_directory = '/etc/nagios/objects';
+$ec2nagios_config_file = 'ec2nagios.cfg';
 
 $regions = array(
 	AmazonEC2::REGION_US_E1,
