@@ -27,6 +27,8 @@ foreach ($regions as $region) {
 	// create config
 	foreach ($instances->body->reservationSet->children() as $reservationItem) {
 		foreach ($reservationItem->instancesSet->children() as $instanceItem) {
+			if($instanceItem->instanceState->name != 'running')
+				continue;
 			$group_name = $region;
 			$node_dns = $instanceItem->dnsName;
 			$node_ip = $use_public_dns ? $instanceItem->dnsName : $instanceItem->privateIpAddress;
