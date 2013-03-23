@@ -4,18 +4,12 @@ require_once (dirname(__FILE__) . '/aws-sdk-for-php/sdk.class.php');
 require_once (dirname(__FILE__) . '/config.inc.php');
 
 $ec2 = new AmazonEC2();
-$ec2nagios_config_path = "{$objects_directory}/{$ec2nagios_config_file}";
 
-# Add ec2nagios.cfg file line to nagios.cfg
+# Add EC2Nagios placeholder to nagios.cfg
+$ec2nagios_config_pattern = "/{$config_begin_seperater}(.*){$config_end_seperater}/s";
 $old_config = @file_get_contents($config_path);
-$pattern = '/(.*)cfg_file=([^\n]*)/ms';
-preg_match($pattern, $old_config, $match);
-if ($match) {
-	if (strpos($match[2], $ec2nagios_config_file) === false) {
-		$replacement = '$0' . "\n\n# EC2Nagios configuration\ncfg_file={$ec2nagios_config_path}";
-		$new_config = preg_replace($pattern, $replacement, $old_config);
-		file_put_contents($config_path, $new_config);
-	}
+if (!preg_match($ec2nagios_config_pattern, $old_config)) {
+	$old_config = preg_replace('/(.*)cfg_file=([^\n]*)/ms', '$0' . "\n\n{$config_begin_seperater}\n{$config_end_seperater}", $old_config);
 }
 
 # List EC2 instances and generate configuration
@@ -61,7 +55,14 @@ foreach ($host_group_members as $host_group => $members) {
 	$config .= create_host_group_config($host_group, $members);
 }
 
-file_put_contents($ec2nagios_config_path, $config);
+file_put_contents("{$objects_directory}/{$ec2nagios_config_file}", $config);
+
+# Add EC2Nagios config files path to nagios.cfg
+$host_groups = array_keys($host_group_members);
+$nagios_config = create_nagios_config($objects_directory, $ec2nagios_config_file, $host_groups);
+$new_config = preg_replace($ec2nagios_config_pattern, "{$config_begin_seperater}\n{$nagios_config}{$config_end_seperater}", $old_config);
+
+file_put_contents($config_path, $new_config);
 
 function create_host_config($node_dns, $node_name, $node_ip) {
 
@@ -91,6 +92,17 @@ define hostgroup{
         }
 
 EOT;
+
+	return $config;
+
+}
+
+function create_nagios_config($objects_directory, $ec2nagios_config_file, $host_groups) {
+
+	$config = "cfg_file={$objects_directory}/{$ec2nagios_config_file}\n";
+	foreach ($host_groups as $host_group) {
+		$config .= "cfg_file={$objects_directory}/{$host_group}.cfg\n";
+	}
 
 	return $config;
 

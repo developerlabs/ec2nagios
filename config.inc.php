@@ -26,4 +26,7 @@ $regions = array(
 	AmazonEC2::REGION_SA_E1,
 );
 
+$config_begin_seperater = '### EC2NAGIOS BEGIN ###';
+$config_end_seperater = '### EC2NAGIOS END ###';
+
 $use_public_dns = false;
