@@ -64,6 +64,15 @@ $new_config = preg_replace($ec2nagios_config_pattern, "{$config_begin_seperater}
 
 file_put_contents($config_path, $new_config);
 
+# Create template host_group configuration if not exists
+foreach ($host_groups as $host_group) {
+	$host_group_config_path = "{$objects_directory}/{$host_group}.cfg";
+	if (!file_exists($host_group_config_path)) {
+		$host_group_config = create_host_group_config_template($host_group);
+		file_put_contents($host_group_config_path, $host_group_config);
+	}
+}
+
 function create_host_config($node_dns, $node_name, $node_ip) {
 
 	$config = <<<EOT
@@ -103,6 +112,24 @@ function create_nagios_config($objects_directory, $ec2nagios_config_file, $host_
 	foreach ($host_groups as $host_group) {
 		$config .= "cfg_file={$objects_directory}/{$host_group}.cfg\n";
 	}
+
+	return $config;
+
+}
+
+function create_host_group_config_template($host_group) {
+
+	$config = <<<EOT
+# You can edit following lines for "{$host_group}" hostgroup
+
+define service{
+        use                     local-service
+        hostgroup_name          {$host_group}
+        service_description     PING
+        check_command           check_ping!100.0,20%!500.0,60%
+        }
+
+EOT;
 
 	return $config;
 
