@@ -23,6 +23,9 @@ class Ec2nagios {
 	private static function edit_nagios_config_for_ec2nagios() {
 
 		$nagios_config = @file_get_contents(Ec2nagiosConfig::get_nagios_config_path());
+		if (!$nagios_config)
+			throw new Exception('Failed to read nagios config: ' . Ec2nagiosConfig::get_nagios_config_path());
+
 		$line = 'cfg_dir=' . Ec2nagiosConfig::get_config_directory();
 		if (strpos($nagios_config, $line) !== false)
 			return;
@@ -31,7 +34,8 @@ class Ec2nagios {
 		if (strpos($nagios_config, $line) == false)
 			$nagios_config .= "\n{$line}\n";
 
-		file_put_contents(Ec2nagiosConfig::get_nagios_config_path(), $nagios_config);
+		if (!@file_put_contents(Ec2nagiosConfig::get_nagios_config_path(), $nagios_config))
+			throw new Exception('Failed to edit nagios config: ' . Ec2nagiosConfig::get_nagios_config_path());
 
 	}
 
@@ -40,7 +44,8 @@ class Ec2nagios {
 		if (file_exists(Ec2nagiosConfig::get_config_directory()))
 			return;
 
-		mkdir(Ec2nagiosConfig::get_config_directory());
+		if (!@mkdir(Ec2nagiosConfig::get_config_directory()))
+			throw new Exception('Failed to make EC2Nagios directory: ' . Ec2nagiosConfig::get_config_directory());
 
 	}
 
@@ -83,7 +88,8 @@ class Ec2nagios {
 			return;
 
 		$config = self::generate_service_config($group_name);
-		file_put_contents($config_path, $config);
+		if (!@file_put_contents($config_path, $config))
+			throw new Exception('Failed to make service config template: ' + $config_path);
 
 	}
 
