@@ -1,6 +1,7 @@
 #!/usr/bin/env php
 <?php
 
-require_once (dirname(__FILE__) . '/src/Ec2nagios.php');
+require_once (dirname(__FILE__) . '/Ec2nagios.php');
+require_once (dirname(__FILE__) . '/config.php');
 
 Ec2nagios::start();
