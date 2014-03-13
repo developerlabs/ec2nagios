@@ -9,15 +9,25 @@ class Ec2nagios {
 		self::add_ec2nagios_objects_directory_to_nagios_config();
 		self::make_ec2nagios_objects_directory();
 
-		$instances = array();
+		$groups = array();
 		foreach (Ec2nagiosConfig::get_accounts() as $project => $option)
-			$instances = array_merge($instances, self::get_instances($project, $option));
+			$groups = array_merge_recursive($groups, self::get_groups($project, $option));
 
-		var_dump($instances);
+		$ec2nagios_config = '';
+		foreach ($groups as $group_name => $instances) {
+			foreach ($instances as $instance)
+				$ec2nagios_config .= self::create_host_config($instance);
+		}
+		foreach ($groups as $group_name => $instances) {
+			$host_names = array();
+			foreach ($instances as $instance)
+				$host_names[] = $instance['dnsName'];
+			$ec2nagios_config .= self::create_hostgroup_config($group_name, implode(',', $host_names));
+		}
 
-		$config = implode("\n\n", $configs);
-		file_put_contents(Ec2nagiosConfig::get_config_path(), $config);
+		file_put_contents(Ec2nagiosConfig::get_ec2nagios_objects_directory() . '/' . Ec2nagiosConfig::get_ec2nagios_config_filename(), $ec2nagios_config);
 
+		var_dump($ec2nagios_config);
 	}
 
 	private static function add_ec2nagios_objects_directory_to_nagios_config() {
@@ -44,16 +54,11 @@ class Ec2nagios {
 
 	}
 
-	public static function get_instances($project, $option) {
+	private static function get_groups($project, $option) {
 
 		$ec2 = new AmazonEC2($option);
 
-		# List EC2 instances and generate configuration
-		$ec2nagios_config = '';
-		$hostgroup_members = array();
-
-		$result = array();
-
+		$groups = array();
 		foreach (Ec2nagiosConfig::get_regions() as $region) {
 
 			$ec2->set_region($region);
@@ -65,26 +70,49 @@ class Ec2nagios {
 				foreach ($reservationItem->instancesSet->children() as $instance) {
 					if ($instance->instanceState->name->to_string() != 'running')
 						continue;
+					$group_name = self::search_ec2nagios_tag_value($instance);
+					if (!$group_name)
+						continue;
 					$variables = self::extract_variables($instance);
 					$variables['projectName'] = $project;
-					$result[] = $variables;
+					$groups[$group_name][] = $variables;
 				}
 			}
 
 		}
 
-		return $result;
+		return $groups;
 
 	}
 
-	private static function create_host_config($node_dns, $node_name, $node_ip) {
+	private static function search_ec2nagios_tag_value($instance) {
+
+		foreach ($instance->tagSet->item as $tag) {
+			$tag_key = $tag->key->to_string();
+			$tag_value = $tag->value->to_string();
+			if (strcasecmp($tag_key, Ec2nagiosConfig::get_tag_key()) === 0) {
+				return $tag_value;
+			}
+		}
+
+	}
+
+	private static function create_ec2nagios_config($instances) {
+
+		foreach ($instances as $instance) {
+
+		}
+
+	}
+
+	private static function create_host_config($instance) {
 
 		$ec2nagios_config = <<<EOT
 define host{
 	use             linux-server
-        host_name       {$node_dns}
-        alias           {$node_name}
-        address         {$node_ip}
+        host_name       {$instance['dnsName']}
+        alias           {$instance['tag.Name']}
+        address         {$instance['dnsName']}
         }
 
 EOT;
@@ -93,15 +121,13 @@ EOT;
 
 	}
 
-	private static function create_hostgroup_config($hostgroup, $members) {
-
-		$members_concat = join($members, ',');
+	private static function create_hostgroup_config($group_name, $members) {
 
 		$ec2nagios_config = <<<EOT
 define hostgroup{
-        hostgroup_name  {$hostgroup}
-        alias           {$hostgroup}
-        members         {$members_concat}
+        hostgroup_name  {$group_name}
+        alias           {$group_name}
+        members         {$members}
         }
 
 EOT;
