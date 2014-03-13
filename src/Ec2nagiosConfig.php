@@ -2,8 +2,8 @@
 class Ec2nagiosConfig {
 
 	private static $nagios_config_path;
-	private static $ec2nagios_objects_directory;
-	private static $ec2nagios_config_filename;
+	private static $config_directory;
+	private static $config_file_name;
 	private static $tag_key;
 	private static $regions;
 	private static $accounts;
@@ -20,20 +20,20 @@ class Ec2nagiosConfig {
 		self::$nagios_config_path = $nagios_config_path;
 	}
 
-	public static function get_ec2nagios_objects_directory() {
-		return self::$ec2nagios_objects_directory;
+	public static function get_config_directory() {
+		return self::$config_directory;
 	}
 
-	public static function set_ec2nagios_objects_directory($ec2nagios_objects_directory) {
-		self::$ec2nagios_objects_directory = $ec2nagios_objects_directory;
+	public static function set_config_directory($config_directory) {
+		self::$config_directory = $config_directory;
 	}
 
-	public static function get_ec2nagios_config_filename() {
-		return self::$ec2nagios_config_filename;
+	public static function get_config_file_name() {
+		return self::$config_file_name;
 	}
 
-	public static function set_ec2nagios_config_filename($ec2nagios_config_filename) {
-		self::$ec2nagios_config_filename = $ec2nagios_config_filename;
+	public static function set_config_file_name($config_file_name) {
+		self::$config_file_name = $config_file_name;
 	}
 
 	public static function get_tag_key() {
