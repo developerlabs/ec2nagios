@@ -1,6 +1,6 @@
 <?php
 
-require_once (dirname(__FILE__) . '/Ec2nagiosConfig.php');
+require_once (dirname(__FILE__) . '/src/Ec2nagiosConfig.php');
 
 Ec2nagiosConfig::set_nagios_config_path('/etc/nagios/nagios.cfg');
 Ec2nagiosConfig::set_ec2nagios_objects_directory('/etc/nagios/ec2nagios');
