@@ -9,9 +9,11 @@ class Ec2nagios {
 		self::add_ec2nagios_objects_directory_to_nagios_config();
 		self::make_ec2nagios_objects_directory();
 
-		$configs = array();
+		$instances = array();
 		foreach (Ec2nagiosConfig::get_accounts() as $project => $option)
-			$configs = array_merge($configs, self::create_configs($project, $option));
+			$instances = array_merge($instances, self::get_instances($project, $option));
+
+		var_dump($instances);
 
 		$config = implode("\n\n", $configs);
 		file_put_contents(Ec2nagiosConfig::get_config_path(), $config);
@@ -20,8 +22,8 @@ class Ec2nagios {
 
 	private static function add_ec2nagios_objects_directory_to_nagios_config() {
 
-		$nagios_config = @file_get_contents(Ec2nagiosConfig::get_nagios_config_path);
-		$line = 'cfg_dir=' . Ec2nagiosConfig::get_ec2nagios_objects_directory;
+		$nagios_config = @file_get_contents(Ec2nagiosConfig::get_nagios_config_path());
+		$line = 'cfg_dir=' . Ec2nagiosConfig::get_ec2nagios_objects_directory();
 		if (strpos($nagios_config, $line) !== false)
 			return;
 
@@ -29,20 +31,20 @@ class Ec2nagios {
 		if (strpos($nagios_config, $line) == false)
 			$nagios_config .= "\n{$line}\n";
 
-		file_put_contents($nagios_config_path, $nagios_config);
+		file_put_contents(Ec2nagiosConfig::get_nagios_config_path(), $nagios_config);
 
 	}
 
 	private static function make_ec2nagios_objects_directory() {
 
-		if (file_exists($ec2nagios_objects_directory))
+		if (file_exists(Ec2nagiosConfig::get_ec2nagios_objects_directory()))
 			return;
 
-		mkdir($ec2nagios_objects_directory);
+		mkdir(Ec2nagiosConfig::get_ec2nagios_objects_directory());
 
 	}
 
-	public static function create_configs($project, $option) {
+	public static function get_instances($project, $option) {
 
 		$ec2 = new AmazonEC2($option);
 
@@ -50,57 +52,28 @@ class Ec2nagios {
 		$ec2nagios_config = '';
 		$hostgroup_members = array();
 
-		foreach ($regions as $region) {
+		$result = array();
 
-			// describe instances in the region.
+		foreach (Ec2nagiosConfig::get_regions() as $region) {
+
 			$ec2->set_region($region);
 			$instances = $ec2->describe_instances();
 			if (!$instances->isOK())
 				continue;
 
-			// create config
 			foreach ($instances->body->reservationSet->children() as $reservationItem) {
-				foreach ($reservationItem->instancesSet->children() as $instanceItem) {
-					if ($instanceItem->instanceState->name != 'running')
+				foreach ($reservationItem->instancesSet->children() as $instance) {
+					if ($instance->instanceState->name->to_string() != 'running')
 						continue;
-					$node_dns = $instanceItem->dnsName;
-					$node_ip = $use_public_dns ? $instanceItem->dnsName : $instanceItem->privateIpAddress;
-					$node_name = null;
-					$hostgroup = null;
-					foreach ($instanceItem->tagSet->item as $tag) {
-						$tag_key = $tag->key->to_string();
-						$tag_value = $tag->value->to_string();
-						if (strcasecmp($tag_key, 'Name') === 0) {
-							$node_name = $tag_value;
-						}
-						if (strcasecmp($tag_key, $ec2nagios_tag_key) === 0) {
-							$hostgroup = $tag_value;
-						}
-					}
-					if ($hostgroup) {
-						$ec2nagios_config .= create_host_config($node_dns, $node_name, $node_ip);
-						$hostgroup_members[$hostgroup][] = $node_dns;
-					}
+					$variables = self::extract_variables($instance);
+					$variables['projectName'] = $project;
+					$result[] = $variables;
 				}
 			}
 
 		}
 
-		foreach ($hostgroup_members as $hostgroup => $members) {
-			$ec2nagios_config .= create_hostgroup_config($hostgroup, $members);
-		}
-
-		file_put_contents("{$ec2nagios_objects_directory}/{$ec2nagios_config_filename}", $ec2nagios_config);
-
-		# Create template hostgroup configuration if not exists
-		$hostgroups = array_keys($hostgroup_members);
-		foreach ($hostgroups as $hostgroup) {
-			$hostgroup_config_path = "{$ec2nagios_objects_directory}/{$hostgroup}.cfg";
-			if (!file_exists($hostgroup_config_path)) {
-				$hostgroup_config = create_hostgroup_config_template($hostgroup);
-				file_put_contents($hostgroup_config_path, $hostgroup_config);
-			}
-		}
+		return $result;
 
 	}
 
@@ -152,6 +125,32 @@ define service{
 EOT;
 
 		return $ec2nagios_config;
+
+	}
+
+	private static function extract_variables($instance) {
+
+		$variables = array(
+			'instanceId' => $instance->instanceId->to_string(),
+			'imageId' => $instance->imageId->to_string(),
+			'instanceState' => $instance->instanceState->name->to_string(),
+			'privateDnsName' => $instance->privateDnsName->to_string(),
+			'dnsName' => $instance->dnsName->to_string(),
+			'keyName' => $instance->keyName->to_string(),
+			'instanceType' => $instance->instanceType->to_string(),
+			'launchTime' => $instance->launchTime->to_string(),
+			'availabilityZone' => $instance->placement->availabilityZone->to_string(),
+			'kernelId' => $instance->kernelId->to_string(),
+			'subnetId' => $instance->subnetId->to_string(),
+			'vpcId' => $instance->vpcId->to_string(),
+			'privateIpAddress' => $instance->privateIpAddress->to_string(),
+			'ipAddress' => $instance->ipAddress->to_string(),
+		);
+
+		foreach ($instance->tagSet->item as $tag)
+			$variables['tag.' . $tag->key->to_string()] = $tag->value->to_string();
+
+		return $variables;
 
 	}
 
