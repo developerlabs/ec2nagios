@@ -22,3 +22,40 @@ Ec2nagiosConfig::set_accounts(array('project' => array(
 		'key' => 'key',
 		'secret' => 'secret-key',
 	), ));
+
+Ec2nagiosConfig::set_host_name_template('${dnsName}');
+
+Ec2nagiosConfig::set_host_template(
+<<<EOT
+define host{
+	use             linux-server
+        host_name       \${hostName}
+        alias           \${tag.Name}
+        address         \${dnsName}
+        }
+
+EOT
+);
+
+Ec2nagiosConfig::set_hostgroup_template(
+<<<EOT
+define hostgroup{
+        hostgroup_name  \${groupName}
+        alias           \${groupName}
+        members         \${members}
+        }
+EOT
+);
+
+Ec2nagiosConfig::set_service_template(
+<<<EOT
+# You can edit following lines for "\${groupName}" hostgroup
+
+define service{
+        use                     local-service
+        hostgroup_name          \${groupName}
+        service_description     PING
+        check_command           check_ping!100.0,20%!500.0,60%
+        }
+EOT
+);

@@ -67,6 +67,7 @@ class Ec2nagios {
 						continue;
 					$variables = self::extract_variables($instance);
 					$variables['projectName'] = $project;
+					$variables['groupName'] = $group_name;
 					$groups[$group_name][] = $variables;
 				}
 			}
@@ -89,23 +90,36 @@ class Ec2nagios {
 
 	}
 
-	private static function create_ec2_nagios_configurtion() {
+	private static function create_ec2_nagios_configurtion($groups) {
 
-		$ec2nagios_config = '';
+		$configs = array();
 
-		foreach ($groups as $group_name => $instances) {
+		foreach ($groups as $group_name => $instances)
 			foreach ($instances as $instance)
-				$ec2nagios_config .= self::create_host_config($instance);
-		}
+				$configs[] = self::create_host_config($instance);
 
-		foreach ($groups as $group_name => $instances) {
-			$host_names = array();
+		foreach ($groups as $group_name => $instances)
+			$configs[] = self::create_hostgroup_config($group_name, self::create_host_names($instances));
+
+		$projects = array();
+		foreach ($groups as $group_name => $instances)
 			foreach ($instances as $instance)
-				$host_names[] = $instance['dnsName'];
-			$ec2nagios_config .= self::create_hostgroup_config($group_name, implode(',', $host_names));
-		}
+				$projects[$instance['projectName']][] = $instance;
 
-		return $ec2nagios_config;
+		foreach ($projects as $project_name => $instances)
+			$configs[] = self::create_hostgroup_config($project_name, self::create_host_names($instances));
+
+		return implode("\n\n", $configs);
+
+	}
+
+	private static function create_host_names($instances) {
+
+		$host_names = array();
+		foreach ($instances as $instance)
+			$host_names[] = self::create_host_name($instance);
+
+		return implode(',', $host_names);
 
 	}
 
@@ -128,52 +142,24 @@ class Ec2nagios {
 
 	}
 
+	private static function create_host_name($instance) {
+		return self::render(Ec2nagiosConfig::get_host_name_template(), $instance);
+	}
+
 	private static function create_host_config($instance) {
-
-		$ec2nagios_config = <<<EOT
-define host{
-	use             linux-server
-        host_name       {$instance['dnsName']}
-        alias           {$instance['tag.Name']}
-        address         {$instance['dnsName']}
-        }
-
-EOT;
-
-		return $ec2nagios_config;
-
+		return self::render(Ec2nagiosConfig::get_host_template(), array_merge($instance, array('hostName' => self::create_host_name($instance))));
 	}
 
 	private static function create_hostgroup_config($group_name, $members) {
-
-		$ec2nagios_config = <<<EOT
-define hostgroup{
-        hostgroup_name  {$group_name}
-        alias           {$group_name}
-        members         {$members}
-        }
-
-EOT;
-
-		return $ec2nagios_config;
-
+		return self::render(Ec2nagiosConfig::get_hostgroup_template(), array(
+			'groupName' => $group_name,
+			'members' => $members
+		));
 	}
 
-	private static function create_hostgroup_config_template($hostgroup) {
+	private static function create_hostgroup_config_template($groupName) {
 
-		$ec2nagios_config = <<<EOT
-# You can edit following lines for "{$hostgroup}" hostgroup
-
-define service{
-        use                     local-service
-        hostgroup_name          {$hostgroup}
-        service_description     PING
-        check_command           check_ping!100.0,20%!500.0,60%
-        }
-
-EOT;
-
-		return $ec2nagios_config;
+		return self::render(Ec2nagiosConfig::get_service_template(), array('groupName' => $groupName));
 
 	}
 
@@ -200,6 +186,15 @@ EOT;
 			$variables['tag.' . $tag->key->to_string()] = $tag->value->to_string();
 
 		return $variables;
+
+	}
+
+	private static function render($template, $variables) {
+
+		foreach ($variables as $key => $value)
+			$template = str_replace('${' . $key . '}', $value, $template);
+
+		return $template;
 
 	}
 

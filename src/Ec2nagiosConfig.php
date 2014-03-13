@@ -1,5 +1,4 @@
 <?php
-
 class Ec2nagiosConfig {
 
 	private static $nagios_config_path;
@@ -8,6 +7,10 @@ class Ec2nagiosConfig {
 	private static $tag_key;
 	private static $regions;
 	private static $accounts;
+	private static $host_name_template;
+	private static $host_template;
+	private static $hostgroup_template;
+	private static $service_template;
 
 	public static function get_nagios_config_path() {
 		return self::$nagios_config_path;
@@ -55,6 +58,38 @@ class Ec2nagiosConfig {
 
 	public static function set_accounts($accounts) {
 		self::$accounts = $accounts;
+	}
+
+	public static function get_host_name_template() {
+		return self::$host_name_template;
+	}
+
+	public static function set_host_name_template($host_name_template) {
+		self::$host_name_template = $host_name_template;
+	}
+
+	public static function get_host_template() {
+		return self::$host_template;
+	}
+
+	public static function set_host_template($host_template) {
+		self::$host_template = $host_template;
+	}
+
+	public static function get_hostgroup_template() {
+		return self::$hostgroup_template;
+	}
+
+	public static function set_hostgroup_template($hostgroup_template) {
+		self::$hostgroup_template = $hostgroup_template;
+	}
+
+	public static function get_service_template() {
+		return self::$service_template;
+	}
+
+	public static function set_service_template($service_template) {
+		self::$service_template = $service_template;
 	}
 
 }
