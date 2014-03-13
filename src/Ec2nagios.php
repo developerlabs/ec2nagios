@@ -13,21 +13,13 @@ class Ec2nagios {
 		foreach (Ec2nagiosConfig::get_accounts() as $project => $option)
 			$groups = array_merge_recursive($groups, self::get_groups($project, $option));
 
-		$ec2nagios_config = '';
-		foreach ($groups as $group_name => $instances) {
-			foreach ($instances as $instance)
-				$ec2nagios_config .= self::create_host_config($instance);
-		}
-		foreach ($groups as $group_name => $instances) {
-			$host_names = array();
-			foreach ($instances as $instance)
-				$host_names[] = $instance['dnsName'];
-			$ec2nagios_config .= self::create_hostgroup_config($group_name, implode(',', $host_names));
-		}
+		foreach ($groups as $group_name => $instances)
+			self::create_initial_service_configuration($group_name);
 
+		$ec2nagios_config = self::create_ec2_nagios_configurtion($groups);
+		
 		file_put_contents(Ec2nagiosConfig::get_ec2nagios_objects_directory() . '/' . Ec2nagiosConfig::get_ec2nagios_config_filename(), $ec2nagios_config);
 
-		var_dump($ec2nagios_config);
 	}
 
 	private static function add_ec2nagios_objects_directory_to_nagios_config() {
@@ -97,11 +89,42 @@ class Ec2nagios {
 
 	}
 
+	private static function create_ec2_nagios_configurtion() {
+
+		$ec2nagios_config = '';
+
+		foreach ($groups as $group_name => $instances) {
+			foreach ($instances as $instance)
+				$ec2nagios_config .= self::create_host_config($instance);
+		}
+
+		foreach ($groups as $group_name => $instances) {
+			$host_names = array();
+			foreach ($instances as $instance)
+				$host_names[] = $instance['dnsName'];
+			$ec2nagios_config .= self::create_hostgroup_config($group_name, implode(',', $host_names));
+		}
+
+		return $ec2nagios_config;
+
+	}
+
 	private static function create_ec2nagios_config($instances) {
 
 		foreach ($instances as $instance) {
 
 		}
+
+	}
+
+	private static function create_initial_service_configuration($group_name) {
+
+		$config_path = Ec2nagiosConfig::get_ec2nagios_objects_directory() . '/' . $group_name . '.cfg';
+		if (file_exists($config_path))
+			return;
+
+		$config = self::create_hostgroup_config_template($group_name);
+		file_put_contents($config_path, $config);
 
 	}
 
