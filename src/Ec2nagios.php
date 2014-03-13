@@ -1,26 +1,50 @@
 <?php
 
-require_once (dirname(__FILE__) . '/aws-sdk-for-php/sdk.class.php');
+require_once (dirname(__FILE__) . '/../aws-sdk-for-php/sdk.class.php');
 
 class Ec2nagios {
 
 	public static function start() {
 
-		$ec2 = new AmazonEC2();
+		self::add_ec2nagios_objects_directory_to_nagios_config();
+		self::make_ec2nagios_objects_directory();
 
-		# Add EC2Nagios configuration directory to nagios.cfg
-		$nagios_config = @file_get_contents($nagios_config_path);
-		$directory_configuration = "cfg_dir={$ec2nagios_objects_directory}";
-		if (strpos($nagios_config, $directory_configuration) === false) {
-			$nagios_config = preg_replace('/(.*)cfg_dir=([^\n]*)/ms', '$0' . "\n\n{$directory_configuration}", $nagios_config);
-			if (strpos($nagios_config, $directory_configuration) === false)
-				$nagios_config .= "\n{$directory_configuration}\n";
-			file_put_contents($nagios_config_path, $nagios_config);
-		}
+		$configs = array();
+		foreach (Ec2nagiosConfig::get_accounts() as $project => $option)
+			$configs = array_merge($configs, self::create_configs($project, $option));
 
-		# Make EC2Nagios objects directory if not exists
-		if (!file_exists($ec2nagios_objects_directory))
-			mkdir($ec2nagios_objects_directory);
+		$config = implode("\n\n", $configs);
+		file_put_contents(Ec2nagiosConfig::get_config_path(), $config);
+
+	}
+
+	private static function add_ec2nagios_objects_directory_to_nagios_config() {
+
+		$nagios_config = @file_get_contents(Ec2nagiosConfig::get_nagios_config_path);
+		$line = 'cfg_dir=' . Ec2nagiosConfig::get_ec2nagios_objects_directory;
+		if (strpos($nagios_config, $line) !== false)
+			return;
+
+		$nagios_config = preg_replace('/(.*)cfg_dir=([^\n]*)/ms', '$0' . "\n\n{$line}", $nagios_config);
+		if (strpos($nagios_config, $line) == false)
+			$nagios_config .= "\n{$line}\n";
+
+		file_put_contents($nagios_config_path, $nagios_config);
+
+	}
+
+	private static function make_ec2nagios_objects_directory() {
+
+		if (file_exists($ec2nagios_objects_directory))
+			return;
+
+		mkdir($ec2nagios_objects_directory);
+
+	}
+
+	public static function create_configs($project, $option) {
+
+		$ec2 = new AmazonEC2($option);
 
 		# List EC2 instances and generate configuration
 		$ec2nagios_config = '';
