@@ -5,7 +5,7 @@ require_once (dirname(__FILE__) . '/src/Ec2nagiosConfig.php');
 Ec2nagiosConfig::set_nagios_config_path('/etc/nagios/nagios.cfg');
 Ec2nagiosConfig::set_config_directory('/etc/nagios/ec2nagios');
 Ec2nagiosConfig::set_config_file_name('ec2nagios.cfg');
-Ec2nagiosConfig::set_tag_key('EC2Nagios');
+Ec2nagiosConfig::set_tag_key('NagiosHostGroup');
 
 Ec2nagiosConfig::set_regions(array(
 	AmazonEC2::REGION_US_E1,

@@ -16,7 +16,7 @@ class Ec2nagios {
 		foreach ($groups as $group_name => $instances)
 			self::make_service_config($group_name);
 
-		self::make_ec2_nagios_configurtion($groups);
+		self::make_ec2_nagios_configuration($groups);
 
 	}
 
@@ -93,7 +93,7 @@ class Ec2nagios {
 
 	}
 
-	private static function make_ec2_nagios_configurtion($groups) {
+	private static function make_ec2_nagios_configuration($groups) {
 
 		$configs = array();
 
